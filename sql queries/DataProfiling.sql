@@ -143,6 +143,15 @@ where customer_zip_code_prefix is null;
 
 
 --customer state distribution
+select avg(state_customers) avg_customers_by_state,
+min(state_customers) min_state_number,
+max(state_customers) max_state_number
+from(
+select customer_state,
+count(*) state_customers
+from olist_customers
+group by customer_state)t;
+
 select customer_state,
 count(*) state_customers
 from olist_customers
@@ -163,6 +172,7 @@ select count(distinct customer_city)city_numbers from olist_customers;
 --OLIST_ORDER_ITEMS
 
 exec sp_help 'dbo.olist_order_items';
+--CHECKING NUMBER OF ROWS AND UNIQUE order_id and order_item_id COUNT
 SELECT
 (SELECT COUNT(*) FROM dbo.olist_order_items) total_rows,
 (SELECT COUNT(*) AS unique_combin
@@ -171,6 +181,65 @@ order_id,
 order_item_id
 FROM dbo.olist_order_items) as distinct_pairs) unique_pairs;
 
+--CHECKING FOR MISSING VALUES
+
+select count(*) missing_ids
+from olist_order_items
+where order_item_id is null;
+
+select count(*) missing_prices
+from olist_order_items
+where price is null;
+
+select count(*) missing_freight
+from olist_order_items
+where freight_value is null;
+
+--profiling prices and freight values
+select round(avg(price),2) as avg_price,
+min(price) as min_price,
+max(price) as max_price
+from olist_order_items;
+
+select round(avg(freight_value),2) as avg_freight,
+min(freight_value) as min_freight,
+max(freight_value) as max_freight
+from olist_order_items;
+
+select count(*)
+from olist_order_items
+where freight_value = 0;
+--multiple order_items have freight value 0, in this case it can be free shipping, as there are only 383 zeros
+
+--product price distribution
+select
+case
+    when price <= 10 then '0-10'
+    when price <= 100 then '11-100'
+    when price <= 500 then '101-500'
+    when price <=1000 then '501-1000'
+    else '1000+'
+end as price_ranges,
+count(*) total_products
+from(
+select distinct product_id, price
+from olist_order_items)t
+group by 
+case
+    when price <= 10 then '0-10'
+    when price <= 100 then '11-100'
+    when price <= 500 then '101-500'
+    when price <=1000 then '501-1000'
+    else '1000+'
+end
+order by min(price);
+
+--grouping by order id, checking order value TO DO!!!!
+select order_id, sum(price) as order_no_freight_value
+from olist_order_items
+group by order_id
+
+--------------------------------------------
 --olist_order_reviews
 
 exec sp_help 'dbo.olist_order_reviews';
@@ -194,6 +263,7 @@ GROUP BY order_id, payment_sequential) as distinct_pairs) unique_pairs;
 
 --olist_products
 
+exec sp_help 'olist_products';
 SELECT
     COUNT(*) AS total_rows,
     COUNT(DISTINCT product_id) AS unique_rows
